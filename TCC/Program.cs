@@ -1,4 +1,5 @@
 ﻿using System;
+using BaseSimulacao;
 
 namespace TCC
 {
@@ -6,7 +7,8 @@ namespace TCC
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Manager simulacao = new Manager();
+            simulacao.CarregaMapaSimulacao("C:/entrada/simulacao.json");
         }
     }
 }
