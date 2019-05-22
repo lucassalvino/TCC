@@ -83,14 +83,19 @@ namespace BaseSimulacao
                 auxSema.RuasDestino.Add(RuaDestino.Id);
                 Semaforos.Add(auxSema);
             }
+            // taxa de geracao veiculos
+            TaxaGeracao.AddRange(DadosEntrada.TaxasGeracao.OrderBy ((x)=>x.Vertice).Select((x)=>x.Taxa));
+            if(TaxaGeracao.Count != grafo.NumeroVertices)
+                throw new Exception("Quantidade de taxas de geração inclopeto");
             #endregion ProcessaEntrada
         }
 
-        public void InicializaSimulacao()
+        public void IniciaSimulacao()
         {
             if (!VerificaCarregamentoDados())
                 throw new Exception("Carregue os dados da simulacao");
             inicializaFilaEsperaVerice();
+
             Task.Run(() => {
                 GeradoraVeiculos();
             });
@@ -115,6 +120,11 @@ namespace BaseSimulacao
         private void GeradoraVeiculos()
         {
             int n = grafo.NumeroVertices;
+            while(true){
+                for(int i = 0; i < n; i++){
+                    //if()
+                }
+            }
         }
         private bool VerificaCarregamentoDados()
         {
@@ -143,6 +153,7 @@ namespace BaseSimulacao
         private List<Semaforo> Semaforos { get; set; } = new List<Semaforo>();
         private List<Queue<Veiculo>> VeiculosEsperaVertice { get; set; } = new List<Queue<Veiculo>>();
         private Grafo grafo = new Grafo();
+        private List<int> TaxaGeracao = new List<int>();
         private GeradorVeiculos geradorVeiculos = new GeradorVeiculos();
         private int DiaSemana, SegundoSimulacao, IdVeiculo;
         private bool ExecutaLoop;

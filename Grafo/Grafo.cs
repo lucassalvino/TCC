@@ -40,6 +40,9 @@ namespace BaseGrafo
                 throw new Exception("Index invalido");
             return Vertices[index];
         }
+        public Vertice GetVertice(int IdVertice){
+            return Vertices.Where((x)=> x.Id == IdVertice).FirstOrDefault();
+        }
         #endregion PropriedadesPublicas
 
         #region OperadoresGrafo

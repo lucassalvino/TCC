@@ -33,7 +33,7 @@ namespace BaseGrafo
             }
         }
 
-        public List<int> GetAllAdjacente
+        public List<int> Adjacentes
         {
             get
             {
