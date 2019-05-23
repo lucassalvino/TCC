@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BaseSimulacao.AuxLogs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,6 +12,7 @@ namespace BaseSimulacao.Entidades
         public int PosicaoAtual { get; set; }
         public int Comprimento { get; set; }
         public List<int> PercursoVeiculo { get; set; } = new List<int>();
+        public LogVeiculo LogVeiculo { get; set; } = new LogVeiculo();
         #endregion Propiedades
 
         #region Construtores

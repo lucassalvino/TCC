@@ -1,14 +1,14 @@
 ﻿using BaseGrafo;
+using BaseSimulacao.AuxLogs;
 using BaseSimulacao.Entidades;
+using BaseSimulacao.Entidades.Leitura;
 using BaseSimulacao.Util;
+using Newtonsoft.Json;
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using BaseSimulacao.Entidades.Leitura;
-using Newtonsoft.Json;
-using System.Threading.Tasks;
+using System.Linq;
+using System.Threading;
 
 namespace BaseSimulacao
 {
@@ -28,6 +28,7 @@ namespace BaseSimulacao
             }
             if (DadosEntrada == null)
                 throw new Exception("Não foi possível realizar a serialização do arquivo de entrada de dados");
+
             #region ProcessaEntrada
             int auxId = 0;
 
@@ -36,14 +37,17 @@ namespace BaseSimulacao
             {
                 grafo.AdicionaAresta(item.VerticeOrigem, item.VerticeDestino, item.Distancia, auxId);
                 Aresta aresta = grafo.ObtenhaAresta(item.VerticeOrigem, item.VerticeDestino);
-                RuasSimulacao.Add(new Rua() {
+                Rua ruaAdicionar = new Rua()
+                {
                     Comprimento = aresta.Peso,
                     NumeroFaixas = item.NumeroVias,
                     IdAresta = aresta.Id,
                     VelocidadeMaxima = item.VelocidadeMaxima,
                     Id = auxId++,
                     Descricao = $"Rua sentido {aresta.Origem} até {aresta.Destino}",
-                });
+                };
+                ruaAdicionar.PreparaRua();
+                RuasSimulacao.Add(ruaAdicionar);
             }
 
             /// comprimento veiculos
@@ -90,42 +94,121 @@ namespace BaseSimulacao
             #endregion ProcessaEntrada
         }
 
-        public void IniciaSimulacao()
+        public void IniciaSimulacao(string logVeiculos)
         {
+            SegundoSimulacao = 0;
+            IdVeiculo = 0;
             if (!VerificaCarregamentoDados())
                 throw new Exception("Carregue os dados da simulacao");
             inicializaFilaEsperaVerice();
-
-            Task.Run(() => {
+            while (SegundoSimulacao < QtdIteracoes)
+            {
                 GeradoraVeiculos();
-            });
-
+                ProcessaVeiculoSimulacao();
+                ProcessaVeiculosVias(logVeiculos);
+                Thread.Sleep(TempoDelayRotinas);
+                SegundoSimulacao++;
+            }
         }
+        
         public Grafo GetGrafoSimulacao()
         {
             return grafo;
         }
+
         public void pararLoop()
         {
             ExecutaLoop = false;
         }
+
         public Rua GetRua(int origem, int destino)
         {
             return RuasSimulacao.Where((x) => x.IdAresta == grafo.ObtenhaAresta(origem, destino).Id).FirstOrDefault();
         }
+
         public bool ImprimirLogTela { get; set; }
         #endregion Metodos
 
         #region MetodosPrivados
         private void GeradoraVeiculos()
         {
+            if (ImprimirLogTela)
+                Console.WriteLine("Iniciando rotina de geração de veículos");
             int n = grafo.NumeroVertices;
-            while(true){
-                for(int i = 0; i < n; i++){
-                    //if()
+            for (int i = 0; i < n; i++)
+            {
+                if (RoletaSorteio.ExecutaRoleta(TaxaGeracao[i]))
+                {
+                    Veiculo veiculoAdicionar = geradorVeiculos.GeraVeiculoAleatorio(IdVeiculo, grafo, i);
+                    veiculoAdicionar.LogVeiculo = new LogVeiculo()
+                    {
+                        IdVeiculo = veiculoAdicionar.Id,
+                        InstanteCriacao = SegundoSimulacao,
+                        VerticeOrigem = i,
+                        VerticeDestino = veiculoAdicionar.PercursoVeiculo.Last()
+                    };
+                    VeiculosEsperaVertice[i].Enqueue(veiculoAdicionar);
+                    if (ImprimirLogTela)
+                        Console.WriteLine($"Realizado inserção de veículo no vértice {i}.");
+
+                    #region TratativaLogs
+                    LogGeracaoVeiculos.Add(new LogGeracaoVeiculo()
+                    {
+                        VerticeIncersao = i,
+                        IdVeiculo = IdVeiculo++,
+                        SegundoSimulacao = SegundoSimulacao
+                    });
+                    #endregion TratativaLogs
                 }
             }
+            #region TratativaLogs
+            for(int i = 0; i < n; i++)
+            {
+                LogQtdVeiculosEsperaTempo.Add(
+                    new LogQtdVeiculosEsperaVertice()
+                    {
+                        InstanteTempo = SegundoSimulacao,
+                        QtdVeiculos = VeiculosEsperaVertice[i].Count
+                    });
+            }
+            #endregion TrativaLogs
         }
+
+        private void ProcessaVeiculoSimulacao()
+        {
+            if (ImprimirLogTela)
+                Console.WriteLine("Iniciando rotina de Geração de veículos");
+            foreach (var rua in RuasSimulacao)
+            {
+                Aresta ArestaCorrespondente = grafo.GetAresta(rua.IdAresta);
+                Vertice VerticeOrigem = grafo.GetVertice(ArestaCorrespondente.Origem);
+                if(VeiculosEsperaVertice[ArestaCorrespondente.Origem].Count > 0)
+                {
+                    if (rua.AdicionaVeiculo(VeiculosEsperaVertice[ArestaCorrespondente.Origem].Peek(), SegundoSimulacao))
+                    {
+                        if (ImprimirLogTela)
+                            Console.WriteLine($"O veículo {VeiculosEsperaVertice[ArestaCorrespondente.Origem].Peek().Id} entrou na rua {rua.Id}");
+                        VeiculosEsperaVertice[ArestaCorrespondente.Origem].Dequeue();
+                    }
+                }
+                #region TrativaLogs
+                LogOcupacaoVias.Add(new LogOcupacaoVias() {
+                    IdAresta = rua.IdAresta,
+                    EspacoOcupado = (int)rua.MediaOcupacaoVias(),
+                    InstanteTempo = SegundoSimulacao
+                });
+                #endregion TrativaLogs
+            }
+        }
+
+        private void ProcessaVeiculosVias(string folderLogsVeiculo)
+        {
+            foreach(Rua rua in RuasSimulacao)
+            {
+                rua.PocessaFilaVeiculos(SegundoSimulacao, folderLogsVeiculo);
+            }
+        }
+
         private bool VerificaCarregamentoDados()
         {
             if (grafo == null || grafo.NumeroVertices == 0 || grafo.NumeroArestas == 0) return false;
@@ -155,8 +238,79 @@ namespace BaseSimulacao
         private Grafo grafo = new Grafo();
         private List<int> TaxaGeracao = new List<int>();
         private GeradorVeiculos geradorVeiculos = new GeradorVeiculos();
-        private int DiaSemana, SegundoSimulacao, IdVeiculo;
+        private int SegundoSimulacao, IdVeiculo;
         private bool ExecutaLoop;
+        public int TempoDelayRotinas { get; set; }
+        public int QtdIteracoes { get; set; }
         #endregion Propriedades
+
+        #region PropriedadesLogs
+        public List<LogGeracaoVeiculo> LogGeracaoVeiculos { get; set; } = new List<LogGeracaoVeiculo>();
+        public List<LogQtdVeiculosEsperaVertice> LogQtdVeiculosEsperaTempo { get; set; } = new List<LogQtdVeiculosEsperaVertice>();
+        public List<LogOcupacaoVias> LogOcupacaoVias { get; set; } = new List<LogOcupacaoVias>();
+        #endregion PropriedadesLogs
+
+        #region SalvarLogs
+        public void SalvarLogsGeracaoVeiculos(string caminhoVeiculosVertice, string CaminhoVeiculoPorTempo)
+        {
+            List<string> LogSalvar = new List<string>();
+            for(int i = 0; i < grafo.NumeroVertices; i++)
+            {
+                LogSalvar.Add($"{i};{LogGeracaoVeiculos.Where((x)=>x.VerticeIncersao == i).Sum((x)=>1)}");
+            }
+            using (StreamWriter file = new StreamWriter(caminhoVeiculosVertice))
+            {
+                if (file == null)
+                    throw new Exception("arquivo não encontrao");
+                file.Write(string.Join("\n", LogSalvar));
+                file.Close();
+            }
+            LogSalvar.Clear();
+            foreach(var item in LogGeracaoVeiculos)
+            {
+                LogSalvar.Add($"{item.SegundoSimulacao};{LogGeracaoVeiculos.Where((x) => x.SegundoSimulacao == item.SegundoSimulacao).Sum((x) => 1)}");
+            }
+            using (StreamWriter file = new StreamWriter(CaminhoVeiculoPorTempo))
+            {
+                if (file == null)
+                    throw new Exception("arquivo não encontrao");
+                file.Write(string.Join("\n", LogSalvar));
+                file.Close();
+            }
+        }
+        public void SalvarLogVeiculosEspera(string caminhoVeiculosEsperaTempo)
+        {
+            List<string> LogSalvar = new List<string>();
+            foreach(var item in LogQtdVeiculosEsperaTempo)
+            {
+                LogSalvar.Add($"{item.InstanteTempo};{LogQtdVeiculosEsperaTempo.Where((x)=>x.InstanteTempo == item.InstanteTempo).Sum((x)=>1)}");
+            }
+            using (StreamWriter file = new StreamWriter(caminhoVeiculosEsperaTempo))
+            {
+                if (file == null)
+                    throw new Exception("arquivo não encontrao");
+                file.Write(string.Join("\n", LogSalvar));
+                file.Close();
+            }
+        }
+        public void SalvarLogEspacoOcupadoVias(string caminhoPastaVia)
+        {
+            for (int i = 0; i<grafo.NumeroArestas; i++)
+            {
+                List<string> LogSalvar = new List<string>();
+                List<LogOcupacaoVias> salvarAresta = LogOcupacaoVias.Where((x=>x.IdAresta == i)).ToList();
+                foreach (var item in salvarAresta)
+                {
+                    LogSalvar.Add($"{item.InstanteTempo};{item.EspacoOcupado}");
+                }
+                using (StreamWriter file = new StreamWriter($"{caminhoPastaVia}/{i}.csv"))
+                {
+                    file.Write(string.Join("\n", LogSalvar));
+                    file.Close();
+                }
+            }
+            
+        }
+        #endregion SalvarLogs
     }
 }

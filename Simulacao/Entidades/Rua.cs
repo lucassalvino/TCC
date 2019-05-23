@@ -1,5 +1,8 @@
-﻿using System;
+﻿using BaseSimulacao.AuxLogs;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace BaseSimulacao.Entidades
@@ -21,7 +24,7 @@ namespace BaseSimulacao.Entidades
             NumeroFaixas = -1;
             Comprimento = -1;
             VelocidadeMaxima = -1;
-            this.Id = Id;
+            this.Id = Id;            
         }
         public Rua(int id, int numeroFaixas, int comprimento, int velocidadeMaxima, int idAresta)
         {
@@ -34,7 +37,7 @@ namespace BaseSimulacao.Entidades
         }
 
         #endregion Construtores
-        bool AdicionaVeiculo(Veiculo novoVeiculo)
+        public bool AdicionaVeiculo(Veiculo novoVeiculo, int instanteTempo)
         {
             VerificaInicializacao();
             if (novoVeiculo == null)
@@ -43,6 +46,10 @@ namespace BaseSimulacao.Entidades
             {
                 if(Comprimento >= (EspacoOcupado[i] + novoVeiculo.Comprimento))
                 {
+                    novoVeiculo.LogVeiculo.VelocidadesTempo.Add(new LogVelocidadeVeiculo() {
+                        Velociadade = 0,
+                        InstanteTempo = instanteTempo
+                    });
                     VeiculosNaRua[i].Enqueue(novoVeiculo);
                     EspacoOcupado[i] += novoVeiculo.Comprimento;
                     return true;
@@ -56,12 +63,62 @@ namespace BaseSimulacao.Entidades
             for(int i=0; i < NumeroFaixas; i++)
             {
                 if (VeiculosNaRua[i].Count > 0)
+                {
+                    EspacoOcupado[i] -= VeiculosNaRua[i].Peek().Comprimento;
                     return VeiculosNaRua[i].Dequeue();
+                }
             }
             return null;
         }
         #region Metodos
-
+        public void PocessaFilaVeiculos(int SegundoSimalcao, string FolderLogVeiculos = "")
+        {
+            for (int i = 0; i < NumeroFaixas; i++)
+            {
+                Queue<Veiculo> novaFila = new Queue<Veiculo>();
+                List<Veiculo> veiculos = VeiculosNaRua[i].ToList();
+                veiculos.Reverse();
+                foreach(var veiculo in veiculos)
+                {
+                    veiculo.PosicaoAtual += veiculo.Velocidade;
+                    if (veiculo.PosicaoAtual <= Comprimento / 2)
+                        veiculo.Velocidade += 1;
+                    else
+                        veiculo.Velocidade -= 1;
+                    veiculo.LogVeiculo.VelocidadesTempo.Add(new LogVelocidadeVeiculo()
+                    {
+                        InstanteTempo =- SegundoSimalcao,
+                        Velociadade = veiculo.Velocidade
+                    });
+                    if(veiculo.PosicaoAtual >= Comprimento)
+                    {
+                        Veiculo car = RemoveVeiculo();
+                        if (!string.IsNullOrEmpty(FolderLogVeiculos))
+                        {
+                            List<string> logs = new List<string>();
+                            foreach (var item in car.LogVeiculo.VelocidadesTempo)
+                            {
+                                logs.Add($"{item.InstanteTempo};{item.Velociadade}");
+                            }
+                            using (StreamWriter file = new StreamWriter($"{FolderLogVeiculos}/{car.Id}.csv"))
+                            {
+                                file.Write(string.Join("\n", logs));
+                                file.Close();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        novaFila.Enqueue(veiculo);
+                    }
+                }
+                VeiculosNaRua[i] = novaFila;
+            }
+        }
+        public float MediaOcupacaoVias()
+        {
+            return EspacoOcupado.Sum((x) => x) / NumeroFaixas;
+        }
         #endregion Metodos
         #region MetodosPrivados
         public void PreparaRua() {

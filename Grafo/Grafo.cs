@@ -34,6 +34,11 @@ namespace BaseGrafo
             return Arestas[index];
         }
 
+        public Aresta GetAresta(int Id)
+        {
+            return Arestas.Where((x)=>x.Id == Id).FirstOrDefault();
+        }
+
         public Vertice GetVerticeAtIndex(int index)
         {
             if (index < 0 || index >= NumeroVertices)

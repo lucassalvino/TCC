@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace BaseGrafo.Algoritmos
 {
     public class Dijkstra
     {
-        public int[] CalculaDjkstra(int VerticeOrigem, Grafo Grafo)
+        public static int[] CalculaDjkstra(int VerticeOrigem, Grafo Grafo)
         {
             Queue<int> filaVisita = new Queue<int>();
             if (Grafo == null || Grafo.NumeroVertices == 0)
@@ -30,6 +29,8 @@ namespace BaseGrafo.Algoritmos
                 List<int> adjacentes = verticeAtual.Adjacentes;
                 foreach(var item in adjacentes){
                     Aresta arestaAt = Grafo.ObtenhaAresta(verticeAtual.Id, item);
+                    if (visitas[item] != 1)
+                        filaVisita.Enqueue(item);
                     visitas[item] = 1;//visitado
                     if((peso[verticeAtual.Id]+arestaAt.Peso) < peso[item]){
                         peso[item] = peso[verticeAtual.Id]+arestaAt.Peso;
