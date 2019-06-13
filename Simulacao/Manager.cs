@@ -155,8 +155,12 @@ namespace BaseSimulacao
                     LogGeracaoVeiculos.Add(new LogGeracaoVeiculo()
                     {
                         VerticeIncersao = i,
-                        IdVeiculo = IdVeiculo++,
+                        IdVeiculo = IdVeiculo,
                         SegundoSimulacao = SegundoSimulacao
+                    });
+                    LogTrajetos.Add(new LogTrajetosVeiculos {
+                        IdVeiculo = IdVeiculo++,
+                        PercursoVeiculo = veiculoAdicionar.PercursoVeiculo
                     });
                     #endregion TratativaLogs
                 }
@@ -248,6 +252,7 @@ namespace BaseSimulacao
         public List<LogGeracaoVeiculo> LogGeracaoVeiculos { get; set; } = new List<LogGeracaoVeiculo>();
         public List<LogQtdVeiculosEsperaVertice> LogQtdVeiculosEsperaTempo { get; set; } = new List<LogQtdVeiculosEsperaVertice>();
         public List<LogOcupacaoVias> LogOcupacaoVias { get; set; } = new List<LogOcupacaoVias>();
+        public List<LogTrajetosVeiculos> LogTrajetos { get; set; } = new List<LogTrajetosVeiculos>();
         #endregion PropriedadesLogs
 
         #region SalvarLogs
