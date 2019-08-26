@@ -9,14 +9,15 @@ namespace TCC
         {
             Manager simulacao = new Manager(){
                 ImprimirLogTela = true,
-                TempoDelayRotinas = 150,
-                QtdIteracoes = 600
+                TempoDelayRotinas = 0,
+                QtdIteracoes = 600,
+                MargemErroViaLotada = 6
             };
-            simulacao.CarregaMapaSimulacao("C:/entrada/simulacao.json");
-            simulacao.IniciaSimulacao("C:/entrada/Logs/veiculos");
-            simulacao.SalvarLogsGeracaoVeiculos("C:/entrada/Logs/VeiculosPorVertice.csv", "C:/entrada/Logs/VeiculosPorTempo.csv");
-            simulacao.SalvarLogVeiculosEspera("C:/entrada/Logs/VeiculosEsperaPorTempo.csv");
-            simulacao.SalvarLogEspacoOcupadoVias("C:/entrada/Logs/ruas");
+            simulacao.CarregaMapaSimulacao("C:/entrada/mapa.json");
+            simulacao.IniciaSimulacao("C:/LogsSimulacao/Veiculos");
+            //simulacao.SalvarLogsGeracaoVeiculos("C:/entrada/Logs/VeiculosPorVertice.csv", "C:/entrada/Logs/VeiculosPorTempo.csv");
+            //simulacao.SalvarLogVeiculosEspera("C:/entrada/Logs/VeiculosEsperaPorTempo.csv");
+            simulacao.SalvarLogEspacoOcupadoVias("C:/LogsSimulacao/Ruas");
             Console.ReadKey();
         }
     }

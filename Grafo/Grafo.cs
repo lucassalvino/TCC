@@ -56,9 +56,9 @@ namespace BaseGrafo
             return Arestas.Where(x => x.Origem == idOrigem && x.Destino == idDestino).FirstOrDefault();
         }
 
-        public Vertice ObtenhaAresta(int Id)
+        public Aresta ObtenhaAresta(int Id)
         {
-            return Vertices.Where(x => x.Id == Id).FirstOrDefault();
+            return Arestas.Where(x => x.Id == Id).FirstOrDefault();
         }
         public void AdicionaVertice(Vertice Vertice)
         {

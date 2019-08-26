@@ -71,40 +71,66 @@ namespace BaseSimulacao.Entidades
             return null;
         }
         #region Metodos
-        public void PocessaFilaVeiculos(int SegundoSimalcao, string FolderLogVeiculos = "")
+        public void PocessaFilaVeiculos(int SegundoSimalcao, string FolderLogVeiculos, List<Semaforo> Semaforos, int margemErroViaLotada = 2)
         {
+            var semAt = Semaforos.Where(x => x.RuasOrigem.Contains(Id)).FirstOrDefault();
+            bool Existesema = semAt != null;
             for (int i = 0; i < NumeroFaixas; i++)
             {
                 Queue<Veiculo> novaFila = new Queue<Veiculo>();
                 List<Veiculo> veiculos = VeiculosNaRua[i].ToList();
-                veiculos.Reverse();
+
                 foreach(var veiculo in veiculos)
                 {
-                    veiculo.PosicaoAtual += veiculo.Velocidade;
-                    if (veiculo.PosicaoAtual <= Comprimento / 2)
-                        veiculo.Velocidade += 1;
+                    veiculo.PosicaoAtualNaVia += veiculo.Velocidade;
+                    if (veiculo.PosicaoAtualNaVia <= Comprimento)
+                    {
+                        if(Existesema && semAt.EstadoSemaforo == Enuns.EstadosSemaforo.ABERTO)
+                        {
+                            veiculo.Velocidade += 1;
+                        }
+                        else
+                        {
+                            if(!Existesema)
+                                veiculo.Velocidade += 1;
+                        }
+
+                        if (Existesema && semAt.EstadoSemaforo != Enuns.EstadosSemaforo.ABERTO)
+                            veiculo.Velocidade -= 1;
+                    }
                     else
+                    {
                         veiculo.Velocidade -= 1;
+                    }
+
                     veiculo.LogVeiculo.VelocidadesTempo.Add(new LogVelocidadeVeiculo()
                     {
-                        InstanteTempo =- SegundoSimalcao,
+                        InstanteTempo = SegundoSimalcao,
                         Velociadade = veiculo.Velocidade
                     });
-                    if(veiculo.PosicaoAtual >= Comprimento)
+
+                    if((EspacoOcupado[i] + margemErroViaLotada) >= Comprimento)
                     {
-                        Veiculo car = RemoveVeiculo();
-                        if (!string.IsNullOrEmpty(FolderLogVeiculos))
+                        if (veiculo.VerticeAtual == veiculo.PercursoVeiculo.Last())
                         {
-                            List<string> logs = new List<string>();
-                            foreach (var item in car.LogVeiculo.VelocidadesTempo)
+                            Veiculo car = RemoveVeiculo();
+                            if (!string.IsNullOrEmpty(FolderLogVeiculos))
                             {
-                                logs.Add($"{item.InstanteTempo};{item.Velociadade}");
+                                List<string> logs = new List<string>();
+                                foreach (var item in car.LogVeiculo.VelocidadesTempo)
+                                {
+                                    logs.Add($"{item.InstanteTempo};{item.Velociadade}");
+                                }
+                                using (StreamWriter file = new StreamWriter($"{FolderLogVeiculos}/{car.Id}.csv"))
+                                {
+                                    file.Write(string.Join("\n", logs));
+                                    file.Close();
+                                }
                             }
-                            using (StreamWriter file = new StreamWriter($"{FolderLogVeiculos}/{car.Id}.csv"))
-                            {
-                                file.Write(string.Join("\n", logs));
-                                file.Close();
-                            }
+                        }
+                        else
+                        {
+                            novaFila.Enqueue(veiculo);
                         }
                     }
                     else
@@ -132,10 +158,6 @@ namespace BaseSimulacao.Entidades
             {
                 for(int i = 0; i< NumeroFaixas; i++)
                 {
-                    if(EspacoOcupado.Count != 0)
-                    {
-                        EspacoOcupado.Clear();
-                    }
                     VeiculosNaRua.Add(new Queue<Veiculo>());
                     EspacoOcupado.Add(0);
                 }

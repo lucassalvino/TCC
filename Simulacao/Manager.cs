@@ -90,7 +90,7 @@ namespace BaseSimulacao
             // taxa de geracao veiculos
             TaxaGeracao.AddRange(DadosEntrada.TaxasGeracao.OrderBy ((x)=>x.Vertice).Select((x)=>x.Taxa));
             if(TaxaGeracao.Count != grafo.NumeroVertices)
-                throw new Exception("Quantidade de taxas de geração inclopeto");
+                throw new Exception("Quantidade de taxas de geração está inclopeta");
             #endregion ProcessaEntrada
         }
 
@@ -103,9 +103,11 @@ namespace BaseSimulacao
             inicializaFilaEsperaVerice();
             while (SegundoSimulacao < QtdIteracoes)
             {
-                GeradoraVeiculos();
-                ProcessaVeiculoSimulacao();
-                ProcessaVeiculosVias(logVeiculos);
+                GeradoraVeiculos(); // gera veiculos
+                ProcessaVeiculoSimulacao();//Faz Entrada dos veículos nas ruas
+                ProcessaVeiculosVias(logVeiculos);//Desloca veiculos nas ruas
+                ProcessaSemaforos(); //Atualiza estatus dos semaforos
+                TrocaVeiculosRua(SegundoSimulacao); //troca veiculos de rua
                 Thread.Sleep(TempoDelayRotinas);
                 SegundoSimulacao++;
             }
@@ -114,11 +116,6 @@ namespace BaseSimulacao
         public Grafo GetGrafoSimulacao()
         {
             return grafo;
-        }
-
-        public void pararLoop()
-        {
-            ExecutaLoop = false;
         }
 
         public Rua GetRua(int origem, int destino)
@@ -159,10 +156,11 @@ namespace BaseSimulacao
                         SegundoSimulacao = SegundoSimulacao
                     });
                     LogTrajetos.Add(new LogTrajetosVeiculos {
-                        IdVeiculo = IdVeiculo++,
+                        IdVeiculo = IdVeiculo,
                         PercursoVeiculo = veiculoAdicionar.PercursoVeiculo
                     });
                     #endregion TratativaLogs
+                    IdVeiculo++;
                 }
             }
             #region TratativaLogs
@@ -209,7 +207,80 @@ namespace BaseSimulacao
         {
             foreach(Rua rua in RuasSimulacao)
             {
-                rua.PocessaFilaVeiculos(SegundoSimulacao, folderLogsVeiculo);
+                rua.PocessaFilaVeiculos(SegundoSimulacao, folderLogsVeiculo, Semaforos, MargemErroViaLotada);
+            }
+        }
+
+        private void ProcessaSemaforos()
+        {
+            foreach (var at in Semaforos)
+            {
+                at.TempoAtual++;
+                if (at.EstadoSemaforo == Entidades.Enuns.EstadosSemaforo.ABERTO && at.TempoAtual >= at.TempoAberto)
+                {
+                    at.TempoAtual = 0;
+                    at.EstadoSemaforo = Entidades.Enuns.EstadosSemaforo.AMARELO;
+                }
+                else
+                {
+                    if (at.EstadoSemaforo == Entidades.Enuns.EstadosSemaforo.AMARELO && at.TempoAtual >= at.TempoAmarelo)
+                    {
+                        at.TempoAtual = 0;
+                        at.EstadoSemaforo = Entidades.Enuns.EstadosSemaforo.FECHADO;
+                    }
+                    else
+                    {
+                        if(at.EstadoSemaforo == Entidades.Enuns.EstadosSemaforo.FECHADO && at.TempoAtual >= at.TempoFechado)
+                        {
+                            at.TempoAtual = 0;
+                            at.EstadoSemaforo = Entidades.Enuns.EstadosSemaforo.ABERTO;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void  TrocaVeiculosRua(int instanteSimulacao)
+        {
+            foreach(var rua in RuasSimulacao)
+            {
+                var sema = Semaforos.Where(x=> x.RuasOrigem.Contains(rua.Id)).FirstOrDefault();
+                bool temSem = sema != null;
+                for(int i = 0; i<rua.NumeroFaixas; i++)
+                {
+                    var veiculos = rua.VeiculosNaRua[i].ToList();
+                    foreach(var veiculo in veiculos)
+                    {
+                        if((rua.EspacoOcupado[i] + MargemErroViaLotada) >= rua.Comprimento)
+                        {
+                            bool removeVeiculo = true;
+                            if(temSem && sema.EstadoSemaforo != Entidades.Enuns.EstadosSemaforo.ABERTO)
+                            {
+                                removeVeiculo = false;
+                            }
+
+                            if (removeVeiculo)
+                            {
+                                var arestaRuaAt = grafo.ObtenhaAresta(rua.IdAresta);
+                                int verticeOrigemProximaRua = arestaRuaAt.Destino;
+                                veiculo.VerticeAtual = veiculo.ProximoDestinoVeiculo();
+                                int verticeDestinoProximaRua = veiculo.ProximoDestinoVeiculo();
+                                var procimaAresta = grafo.ObtenhaAresta(verticeOrigemProximaRua, verticeDestinoProximaRua);
+                                if(procimaAresta is object)
+                                {
+                                    var prua = RuasSimulacao.Where(x => x.IdAresta == procimaAresta.Id).FirstOrDefault();
+                                    if (prua is object)
+                                    {
+                                        if (prua.AdicionaVeiculo(veiculo, instanteSimulacao))
+                                        {
+                                            rua.RemoveVeiculo();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -242,9 +313,10 @@ namespace BaseSimulacao
         private Grafo grafo = new Grafo();
         private List<int> TaxaGeracao = new List<int>();
         private GeradorVeiculos geradorVeiculos = new GeradorVeiculos();
-        private int SegundoSimulacao, IdVeiculo;
-        private bool ExecutaLoop;
+        private int SegundoSimulacao = 0;
+        private int IdVeiculo = 0;
         public int TempoDelayRotinas { get; set; }
+        public int MargemErroViaLotada { get; set; } = 2;
         public int QtdIteracoes { get; set; }
         #endregion Propriedades
 

@@ -36,7 +36,8 @@ namespace BaseSimulacao.Util
                 Comprimento = ComprimentosPossiveis[new Random().Next()%ComprimentosPossiveis.Count],
                 Velocidade = VelocidadesPossiveis[new Random().Next()%VelocidadesPossiveis.Count],
                 Id = Id,
-                PosicaoAtual = VerticeOrigem,
+                VerticeAtual = VerticeOrigem,
+                PosicaoAtualNaVia = 0,
                 PercursoVeiculo = GeraPercurso(caminho, EscolheDestino(grafo.NumeroVertices, VerticeOrigem))
             };
             return Retorno;
